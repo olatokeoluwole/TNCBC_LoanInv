@@ -10,6 +10,8 @@ export default function ManageUsersPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState('standard');
   const [adding, setAdding] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -34,8 +36,11 @@ export default function ManageUsersPage() {
     const existsInUsers = users.find(u => u.email === newEmail);
     const existsInPreReg = preReg.find(u => u.email === newEmail);
 
+    setErrorMessage('');
+    setSuccessMessage('');
+
     if (existsInUsers || existsInPreReg) {
-        alert("Email already registered or pre-registered.");
+        setErrorMessage("Email already registered or pre-registered.");
         setAdding(false);
         return;
     }
@@ -49,21 +54,23 @@ export default function ManageUsersPage() {
     if (!error) {
         setNewName('');
         setNewEmail('');
+        setSuccessMessage('User added successfully!');
         fetchUsers();
     } else {
-        alert("Error adding user: " + error.message);
+        setErrorMessage("Error adding user: " + error.message);
     }
     setAdding(false);
   };
 
   const handleDelete = async (id: string, type: 'user' | 'pre_reg') => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     if (type === 'pre_reg') {
-       await supabase.from('pre_registered').delete().eq('id', id);
+       const { error } = await supabase.from('pre_registered').delete().eq('id', id);
+       if (error) setErrorMessage("Delete error: " + error.message);
     } else {
-       await supabase.from('users').delete().eq('id', id);
-       // we don't delete auth record here directly unless we use an edge function
+       const { error } = await supabase.from('users').delete().eq('id', id);
+       if (error) setErrorMessage("Delete error: " + error.message);
     }
     fetchUsers();
   };
@@ -71,9 +78,11 @@ export default function ManageUsersPage() {
   const handleChangeRole = async (id: string, currentRole: string, type: 'user' | 'pre_reg') => {
       const newRoleToSet = currentRole === 'admin' ? 'standard' : 'admin';
       if (type === 'pre_reg') {
-          await supabase.from('pre_registered').update({ role: newRoleToSet }).eq('id', id);
+          const { error } = await supabase.from('pre_registered').update({ role: newRoleToSet }).eq('id', id);
+          if (error) setErrorMessage("Update error: " + error.message);
       } else {
-          await supabase.from('users').update({ role: newRoleToSet }).eq('id', id);
+          const { error } = await supabase.from('users').update({ role: newRoleToSet }).eq('id', id);
+          if (error) setErrorMessage("Update error: " + error.message);
       }
       fetchUsers();
   }
@@ -89,6 +98,8 @@ export default function ManageUsersPage() {
       {/* Add User Form */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-4 mb-6 shrink-0">
          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-tight mb-4">Pre-register New User</h3>
+         {errorMessage && <div className="mb-4 p-2 bg-rose-50 text-rose-600 text-sm border border-rose-200 rounded">{errorMessage}</div>}
+         {successMessage && <div className="mb-4 p-2 bg-emerald-50 text-emerald-600 text-sm border border-emerald-200 rounded">{successMessage}</div>}
          <form onSubmit={handleAddPreReg} className="flex flex-col sm:flex-row gap-4 items-end">
              <div className="flex-1 w-full">
                 <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Name</label>
